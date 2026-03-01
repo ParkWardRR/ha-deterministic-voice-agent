@@ -4,12 +4,15 @@
 
 [![Rust](https://img.shields.io/badge/Rust-1.80+-000000?logo=rust&style=for-the-badge)](https://www.rust-lang.org/)
 [![ONNX Runtime](https://img.shields.io/badge/ONNX_v2.0-CUDA/_TensorRT-005CED?logo=onnx&style=for-the-badge)](https://onnxruntime.ai/)
+[![NVIDIA CUDA](https://img.shields.io/badge/CUDA-Hardware%20Accel-76B900?logo=nvidia&style=for-the-badge)](https://developer.nvidia.com/cuda-toolkit)
 [![Tokio](https://img.shields.io/badge/Async-Tokio-DCDCDC?style=for-the-badge)](https://tokio.rs/)
+[![Axum](https://img.shields.io/badge/HTTP-Axum-EF4444?style=for-the-badge)](https://github.com/tokio-rs/axum)
 [![SIMD](https://img.shields.io/badge/SIMD-AVX--512-FF5722?style=for-the-badge)](https://en.wikipedia.org/wiki/Advanced_Vector_Extensions)
 [![pgvector](https://img.shields.io/badge/pgvector-HNSW%20ANN-4B5563?style=for-the-badge)](https://github.com/pgvector/pgvector)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-336791?logo=postgresql&style=for-the-badge)](https://www.postgresql.org/)
 [![Home Assistant](https://img.shields.io/badge/Home%20Assistant-Custom%20Agent-18BCF2?logo=homeassistant&style=for-the-badge)](https://www.home-assistant.io/)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&style=for-the-badge)](https://www.python.org/)
+[![Linux](https://img.shields.io/badge/Linux-x86__64_/_ARM64-FCC624?logo=linux&style=for-the-badge)](https://www.kernel.org/)
 [![License](https://img.shields.io/badge/License-Blue_Oak_1.0.0-blue.svg?style=for-the-badge)](https://blueoakcouncil.org/license/1.0.0)
 
 *A deterministic-first voice control orchestrator for Home Assistant written in highly-optimized Rust.*
