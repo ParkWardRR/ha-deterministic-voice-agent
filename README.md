@@ -1,15 +1,15 @@
 # Deterministic HA Voice Agent
 
 [![CI](https://github.com/ParkWardRR/ha-deterministic-voice-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/ParkWardRR/ha-deterministic-voice-agent/actions/workflows/ci.yml)
-[![Go](https://img.shields.io/badge/Go-1.23+-00ADD8?logo=go)](https://go.dev/)
+[![Rust](https://img.shields.io/badge/Rust-1.80+-000000?logo=rust)](https://www.rust-lang.org/)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python)](https://www.python.org/)
 [![Home%20Assistant](https://img.shields.io/badge/Home%20Assistant-Custom%20Conversation%20Agent-18BCF2?logo=homeassistant)](https://www.home-assistant.io/)
 [![Postgres](https://img.shields.io/badge/PostgreSQL-17-336791?logo=postgresql)](https://www.postgresql.org/)
 [![pgvector](https://img.shields.io/badge/pgvector-HNSW%20ANN-4B5563)](https://github.com/pgvector/pgvector)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](./LICENSE)
 
-Deterministic-first voice control for Home Assistant:
-- resolve entities with lexical + vector retrieval,
+Deterministic-first voice control for Home Assistant written in highly-optimized **Rust**:
+- resolve entities with lexical + vector retrieval (simd-accelerated),
 - parse intent with a small local LLM,
 - enforce safety gates,
 - use a general LLM only for non-home-automation questions.
@@ -88,12 +88,11 @@ sequenceDiagram
 
 ## Repo Layout
 
-- `orchestrator/`: Go API (`/v1/ha/process`, `/healthz`)
-- `sync_entities.py`: entity catalog sync + embedding generation
+- `orchestrator-rs/`: Rust orchestrator API and Entity Sync Daemon (`/v1/ha/process`, `/healthz`, `sync`)
 - `homeassistant/custom_components/deterministic_agent/`: HA integration scaffold
-- `systemd/`: deployment units (`pgvector`, `intent-llm`, `deterministic-agent`, sync timer)
 
 ## Quick Start
+
 
 1. Deploy orchestrator + sync script to your LLM host (`/opt/ha-deterministic-agent/`).
 2. Configure env files in `/etc/ha-deterministic-agent/`.
@@ -115,5 +114,5 @@ sequenceDiagram
 
 ## Notes
 
-- CPU SIMD: AVX2 is typically the practical max on many Intel consumer CPUs; AVX-512 may be unavailable.
-- Most acceleration comes from llama.cpp/CUDA and pgvector indexing, not from orchestrator language choice.
+- CPU SIMD: Rust will intelligently dispatch `target-feature` kernels (AVX-512, AVX2) at runtime to calculate cosine similarities across the vector candidate database extremely fast.
+- The Rust Orchestrator integrates ONNX Runtime (`ort`) to embed Home Assistant vectors in-process using CUDA (with an AVX CPU fallback), removing the need for a standalone Python embedding HTTP server!
