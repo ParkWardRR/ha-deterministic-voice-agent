@@ -1,6 +1,7 @@
 use crate::models::{Candidate, IntentPlan};
 use ndarray::Array2;
 use ort::{
+    execution_providers::{CUDAExecutionProvider, TensorRTExecutionProvider},
     session::{builder::GraphOptimizationLevel, builder::SessionBuilder, Session},
     value::Tensor,
 };
@@ -28,6 +29,11 @@ impl LocalIntentClient {
             .with_optimization_level(GraphOptimizationLevel::Level3)
             .unwrap()
             .with_intra_threads(4)
+            .unwrap()
+            .with_execution_providers([
+                TensorRTExecutionProvider::default().build(),
+                CUDAExecutionProvider::default().build(),
+            ])
             .unwrap()
             .commit_from_file(&model_path)
             .unwrap();

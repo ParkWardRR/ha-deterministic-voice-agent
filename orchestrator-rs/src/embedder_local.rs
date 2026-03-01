@@ -1,4 +1,5 @@
 use ndarray::Array2;
+use ort::execution_providers::{CUDAExecutionProvider, TensorRTExecutionProvider};
 use ort::session::{builder::GraphOptimizationLevel, Session};
 use ort::value::Tensor;
 use std::path::Path;
@@ -41,13 +42,14 @@ pub fn batch_embed_onnx(model_dir: &str, texts: &[&str]) -> Result<Vec<Vec<f32>>
         }
     }
 
-    // Initialize ORT with CUDA fallback to CPU Execution Provider
+    // Initialize ORT with TRT/CUDA fallback to CPU Execution Provider
     let mut session = Session::builder()?
         .with_optimization_level(GraphOptimizationLevel::Level3)?
         .with_intra_threads(4)?
-        // Try CUDA first, if it fails ORT will fallback to CPU automatically if configured correctly
-        // Or we can explicitly set execution providers:
-        // .with_execution_providers([ort::execution_providers::CUDAExecutionProvider::default().build()])
+        .with_execution_providers([
+            TensorRTExecutionProvider::default().build(),
+            CUDAExecutionProvider::default().build(),
+        ])?
         .commit_from_file(model_path)?;
 
     let input_ids_tensor = Tensor::from_array(input_ids)?;

@@ -37,7 +37,7 @@ tokio-tungstenite = { version = "0.21", features = ["rustls-tls-webpki-roots"] }
 dashmap = "5.5"
 
 # ONNX Runtime for in-process ML inference (CUDA + CPU)
-ort = { version = "2.0.0-rc.11", features = ["cuda", "ndarray"] }
+ort = { version = "2.0.0-rc.11", features = ["cuda", "tensorrt", "ndarray"] }
 ndarray = "0.17"
 tokenizers = "0.20"
 
