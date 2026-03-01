@@ -327,6 +327,35 @@ async fn handle_process(
         plan.speech
     };
 
+    // Step 7: Actually execute the actions against Home Assistant!
+    if !final_actions.is_empty() {
+        // Build HTTP client for HA
+        if let Ok(client) = reqwest::Client::builder().timeout(std::time::Duration::from_secs(5)).build() {
+            let base_url = state.resolver.config().ha_url.trim_end_matches('/');
+            let token = &state.resolver.config().ha_token;
+            
+            for action in &final_actions {
+                let url = format!("{}/api/services/{}/{}", base_url, action.domain, action.service);
+                
+                let mut payload = action.service_data.clone().unwrap_or_else(|| serde_json::json!({}));
+                if let Some(obj) = payload.as_object_mut() {
+                    obj.insert("entity_id".to_string(), serde_json::json!(action.entity_id));
+                } else {
+                    payload = serde_json::json!({"entity_id": action.entity_id});
+                }
+
+                tracing::info!("Executing HA action: POST {} with data {:?}", url, payload);
+
+                // Fire and forget (or wait for success)
+                let _ = client.post(&url)
+                    .header("Authorization", format!("Bearer {}", token))
+                    .json(&payload)
+                    .send()
+                    .await;
+            }
+        }
+    }
+
     tracing::info!("Planned {} actions in {:?}", final_actions.len(), start.elapsed());
     ok_resp(ProcessResponse {
         actions: final_actions,
