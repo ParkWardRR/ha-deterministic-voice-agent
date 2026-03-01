@@ -1,3 +1,4 @@
+use crate::config::SafetyConfig;
 use std::collections::HashSet;
 
 pub struct SafetyGate {
@@ -14,6 +15,15 @@ impl Default for SafetyGate {
 }
 
 impl SafetyGate {
+    pub fn with_config(cfg: &SafetyConfig) -> Self {
+        Self {
+            allowed: cfg.allowed_domains.iter().cloned().collect(),
+            blocked: cfg.blocked_domains.iter().cloned().collect(),
+            confirm_only: cfg.confirm_domains.iter().cloned().collect(),
+            confirm_entity_keywords: cfg.confirm_entity_keywords.clone(),
+        }
+    }
+
     pub fn new() -> Self {
         let allowed = vec![
             "light", "switch", "cover", "climate", "media_player", "fan", "scene", "script",

@@ -243,9 +243,10 @@ Rules:
         }
         content = content.trim();
 
-        // Here we can use simd-json for performance parsing user intents if we want.
-        // For now, serde_json is safe.
-        let mut plan: IntentPlan = serde_json::from_str(content).map_err(|e| format!("intent LLM JSON parse: {} (raw: {})", e, content))?;
+        // simd-json parsing
+        let mut plan_bytes = content.as_bytes().to_vec();
+        let mut plan: IntentPlan = simd_json::from_slice(&mut plan_bytes)
+            .map_err(|e| format!("intent LLM (simd-json) parse: {} (raw: {})", e, content))?;
 
         // Validate IDs
         let valid_ids: std::collections::HashSet<_> = candidates.iter().map(|c| c.entity_id.clone()).collect();
