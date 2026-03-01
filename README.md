@@ -32,7 +32,10 @@
 - [How to Deploy](#how-to-deploy)
   - [Home Assistant Integration Guide](#step-4-home-assistant-integration-guide)
 - [Validation & Performance Matrix](#validation--performance-matrix)
+- [Project Roadmap](#project-roadmap)
 - [Repository Layout](#repository-layout)
+
+---
 
 ## Overview
 
@@ -160,11 +163,16 @@ Tested end-to-end on a live local area network resolving against an `RTX 3060` i
 - **Fast-Reject/Clarification Latency**: `~160ms` (Sub-second fallback safety queries before TTS kicks in)
 - **Generative Execution Latency (V2)**: `~550ms - 570ms` (Full pipeline with Native Scopes & `N=20` Context Limits: Speech parsing -> ONNX LLM CUDA Typed Validation -> Strict JSON plan synthesis -> HA Service Execution)
 
+> 🔗 **See the full latency progression & historical test logs in our [Performance Benchmarks Handbook](benchmarks.md)**.
+
 ### Operational Validations
 - **Exact Action**: Deterministically matches specific hardware IDs successfully.
 - **Ambiguity**: Actively halts inference execution processes to natively request clarification on conflicts.
 - **Security Control**: Isolated commands attempting hazardous target interactions are physically halted and blocked.
 - **General Queries**: Arbitrary LLM questioning successfully proxy via backend conversational inference routing gracefully.
+
+## Project Roadmap
+The agent's feature-set is actively expanding. Key V2 additions (Strict Area Scopes and Typed Entity Budgets) have fundamentally bypassed general unbounded similarity matches. For details on upcoming native Home Assistant integration extensions, and parallel execution logic, refer to the **[Project Roadmap Timeline](roadmap.md)**.
 
 ## Repository Layout
 - `orchestrator-rs/`: The Rust backend orchestrator engine processing and validation loop APIs.
