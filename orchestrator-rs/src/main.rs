@@ -331,8 +331,9 @@ async fn handle_process(
     if !final_actions.is_empty() {
         // Build HTTP client for HA
         if let Ok(client) = reqwest::Client::builder().timeout(std::time::Duration::from_secs(5)).build() {
-            let base_url = state.resolver.config().ha_url.trim_end_matches('/');
-            let token = &state.resolver.config().ha_token;
+            let cfg = state.resolver.config();
+            let base_url = cfg.ha_url.trim_end_matches('/');
+            let token = &cfg.ha_token;
             
             for action in &final_actions {
                 let url = format!("{}/api/services/{}/{}", base_url, action.domain, action.service);
