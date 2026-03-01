@@ -1,11 +1,11 @@
 direction: right
 
 input: {label: "Input Phrase"; shape: oval; style.fill: "#e2e8f0"}
-lexical: {label: "Lexical Search\n(In-Memory Cache)"; style.fill: "#bae6fd"}
-vector: {label: "Vector Embedding\n(ONNX sentence-transformers)"; style.fill: "#c4b5fd"}
-db: {label: "PostgreSQL + pgvector\n(AVX-512 SIMD dot-product)"; shape: cylinder; style.fill: "#ddd6fe"}
-merge: {label: "Score Merge & Dedup\n(Lexical priority)"; style.fill: "#f0f4f8"}
-out: {label: "Top 8 Device Candidates"; shape: oval; style.fill: "#86efac"}
+lexical: {label: "Lexical & Scope Filter\n(Area-based Shortcircuit)"; style.fill: "#bae6fd"}
+vector: {label: "ONNX Embeddings\n(sentence-transformers)"; style.fill: "#c4b5fd"}
+db: {label: "PostgreSQL pgvector\n(AVX-512 Batched Rank)"; shape: cylinder; style.fill: "#ddd6fe"}
+merge: {label: "Score Merge & Dedup\n(Apply Budget Limit)"; style.fill: "#f0f4f8"}
+out: {label: "Strict Menu (N ≤ 20)"; shape: oval; style.fill: "#86efac"}
 
 input -> lexical
 input -> vector

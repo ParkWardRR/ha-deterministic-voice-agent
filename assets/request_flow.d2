@@ -1,11 +1,11 @@
 direction: down
 
-start: {label: "Start Voice Command"; shape: oval; style.fill: "#e2e8f0"}
-resolve: {label: "Resolve Target Entity\n(AVX-512 SIMD dot-product)"; style.fill: "#dbeafe"}
+start: {label: "Voice Command & Area Context"; shape: oval; style.fill: "#e2e8f0"}
+resolve: {label: "Resolve & Budget Entities\n(Limits candidates to N=20)"; style.fill: "#dbeafe"}
 found: {label: "Entities Found?"; shape: diamond; style.fill: "#fef08a"}
 fallback: {label: "Route to Fallback LLM"; style.fill: "#fbcfe8"}
-onnx: {label: "Local Intent LLM\n(Qwen 2.5 · RTX 3060 CUDA)"; style.fill: "#dcfce7"}
-extract: "Extract Valid Actions"
+onnx: {label: "Local Intent Planner\n(Enforces PlanStep Schema)"; style.fill: "#dcfce7"}
+extract: "Validate Typed JSON (HaCall, AskClarifying)"
 safety: {label: "Safety Evaluation"; style.fill: "#ffedd5"}
 blocked: {label: "Is Domain Blocked?"; shape: diamond; style.fill: "#fef08a"}
 confirm: {label: "Needs Confirmation?"; shape: diamond; style.fill: "#fef08a"}

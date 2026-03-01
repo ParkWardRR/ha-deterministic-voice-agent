@@ -55,10 +55,10 @@ direction: right
 "Home Assistant".assist -> "Home Assistant".agent: "Text Command"
 "Home Assistant".agent -> "Rust Orchestrator (<50MB RAM)".api: "POST /v1/ha/process"
 
-"Rust Orchestrator (<50MB RAM)".api -> "Rust Orchestrator (<50MB RAM)".resolver: "1. Find Candidates"
-"Rust Orchestrator (<50MB RAM)".resolver -> "Data & AI Runtime".db: "Lookup Embeddings"
+"Rust Orchestrator (<50MB RAM)".api -> "Rust Orchestrator (<50MB RAM)".resolver: "1. Scope Area & Budget (N=20)"
+"Rust Orchestrator (<50MB RAM)".resolver -> "Data & AI Runtime".db: "SIMD Vector Ranking"
 
-"Rust Orchestrator (<50MB RAM)".api -> "Data & AI Runtime".onnx: "2. Strict JSON Parse (CUDA)"
+"Rust Orchestrator (<50MB RAM)".api -> "Data & AI Runtime".onnx: "2. Strict Typed JSON Plan"
 "Rust Orchestrator (<50MB RAM)".api -> "Data & AI Runtime".glm: "Fallback Answer"
 
 "Rust Orchestrator (<50MB RAM)".api -> "Rust Orchestrator (<50MB RAM)".safety: "3. Verify Plan"
