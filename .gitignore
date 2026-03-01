@@ -6,3 +6,4 @@ __pycache__/
 
 # Rust
 orchestrator-rs/target/
+server.alpina-cleanup/

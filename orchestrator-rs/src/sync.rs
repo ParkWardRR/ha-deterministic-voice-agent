@@ -198,13 +198,19 @@ async fn generate_embeddings(
         return Err("No local model and no EMBEDDER_URL configured".into());
     }
 
-    tracing::info!("Using external embedder at {}", cfg.embedder_url);
+    let parsed_url = match Url::parse(&cfg.embedder_url) {
+        Ok(u) => u,
+        Err(e) => return Err(format!("Invalid EMBEDDER_URL ({}): {}", cfg.embedder_url, e).into()),
+    };
+    let api_url = parsed_url.join("v1/embeddings")?;
+
+    tracing::info!("Using external embedder at {}", api_url);
     let client = Client::builder().timeout(Duration::from_secs(60)).build()?;
     let mut all_embeddings = Vec::with_capacity(texts.len());
 
     for text in texts {
         let resp = client
-            .post(format!("{}/v1/embeddings", cfg.embedder_url))
+            .post(api_url.as_str())
             .json(&serde_json::json!({"input": text}))
             .send()
             .await?;
