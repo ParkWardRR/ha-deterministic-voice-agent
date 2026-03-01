@@ -2,12 +2,15 @@
 
 <div align="center">
 
-[![Rust](https://img.shields.io/badge/Rust-1.80+-000000?logo=rust)](https://www.rust-lang.org/)
-[![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python)](https://www.python.org/)
-[![Home%20Assistant](https://img.shields.io/badge/Home%20Assistant-Custom%20Conversation%20Agent-18BCF2?logo=homeassistant)](https://www.home-assistant.io/)
-[![Postgres](https://img.shields.io/badge/PostgreSQL-17-336791?logo=postgresql)](https://www.postgresql.org/)
-[![ONNX](https://img.shields.io/badge/ONNX_Runtime-v2.0-005CED?logo=onnx)](https://onnxruntime.ai/)
-[![License: Blue Oak 1.0.0](https://img.shields.io/badge/License-Blue_Oak_1.0.0-blue.svg)](https://blueoakcouncil.org/license/1.0.0)
+[![Rust](https://img.shields.io/badge/Rust-1.80+-000000?logo=rust&style=for-the-badge)](https://www.rust-lang.org/)
+[![ONNX Runtime](https://img.shields.io/badge/ONNX_v2.0-CUDA/_TensorRT-005CED?logo=onnx&style=for-the-badge)](https://onnxruntime.ai/)
+[![Tokio](https://img.shields.io/badge/Async-Tokio-DCDCDC?style=for-the-badge)](https://tokio.rs/)
+[![SIMD](https://img.shields.io/badge/SIMD-AVX--512-FF5722?style=for-the-badge)]()
+[![pgvector](https://img.shields.io/badge/pgvector-HNSW%20ANN-4B5563?style=for-the-badge)](https://github.com/pgvector/pgvector)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-336791?logo=postgresql&style=for-the-badge)](https://www.postgresql.org/)
+[![Home Assistant](https://img.shields.io/badge/Home%20Assistant-Custom%20Agent-18BCF2?logo=homeassistant&style=for-the-badge)](https://www.home-assistant.io/)
+[![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&style=for-the-badge)](https://www.python.org/)
+[![License](https://img.shields.io/badge/License-Blue_Oak_1.0.0-blue.svg?style=for-the-badge)](https://blueoakcouncil.org/license/1.0.0)
 
 *A deterministic-first voice control orchestrator for Home Assistant written in highly-optimized Rust.*
 
