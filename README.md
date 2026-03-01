@@ -157,8 +157,8 @@ The system utilizes a custom, lightweight Python bridge to route conversational 
 ## Validation & Performance Matrix
 
 Tested end-to-end on a live local area network resolving against an `RTX 3060` intent server over Websockets:
-- **Fast-Reject/Clarification Latency**: `~80ms - 150ms` (Sub-second fallback safety queries before TTS kicks in)
-- **Generative Execution Latency (V2)**: `~280ms - 320ms` (Full pipeline with Native Scopes & `N=20` Context Limits: Speech parsing -> ONNX LLM CUDA Typed Validation -> Strict JSON plan synthesis -> HA Service Execution)
+- **Fast-Reject/Clarification Latency**: `~160ms` (Sub-second fallback safety queries before TTS kicks in)
+- **Generative Execution Latency (V2)**: `~550ms - 570ms` (Full pipeline with Native Scopes & `N=20` Context Limits: Speech parsing -> ONNX LLM CUDA Typed Validation -> Strict JSON plan synthesis -> HA Service Execution)
 
 ### Operational Validations
 - **Exact Action**: Deterministically matches specific hardware IDs successfully.
