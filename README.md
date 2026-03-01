@@ -1,118 +1,106 @@
 # Deterministic HA Voice Agent
 
+<div align="center">
+
 [![CI](https://github.com/ParkWardRR/ha-deterministic-voice-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/ParkWardRR/ha-deterministic-voice-agent/actions/workflows/ci.yml)
 [![Rust](https://img.shields.io/badge/Rust-1.80+-000000?logo=rust)](https://www.rust-lang.org/)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python)](https://www.python.org/)
 [![Home%20Assistant](https://img.shields.io/badge/Home%20Assistant-Custom%20Conversation%20Agent-18BCF2?logo=homeassistant)](https://www.home-assistant.io/)
 [![Postgres](https://img.shields.io/badge/PostgreSQL-17-336791?logo=postgresql)](https://www.postgresql.org/)
-[![pgvector](https://img.shields.io/badge/pgvector-HNSW%20ANN-4B5563)](https://github.com/pgvector/pgvector)
+[![ONNX](https://img.shields.io/badge/ONNX_Runtime-v2.0-005CED?logo=onnx)](https://onnxruntime.ai/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](./LICENSE)
 
-Deterministic-first voice control for Home Assistant written in highly-optimized **Rust**:
-- resolve entities with lexical + vector retrieval (simd-accelerated),
-- parse intent with a small local LLM,
-- enforce safety gates,
-- use a general LLM only for non-home-automation questions.
+*A deterministic-first voice control orchestrator for Home Assistant written in highly-optimized Rust.*
 
-## ELI15
+</div>
 
-Think of this like a smart home referee:
-1. You say: "turn on basement lights".
-2. The referee checks a local list of your devices (fast, deterministic).
-3. A small model picks the exact action from those candidates only.
-4. Safety rules block dangerous stuff or ask follow-up questions.
-5. If your question is not about devices ("what's the weather?"), it sends it to a chat model.
+## Overview
 
-Result: fewer wrong-device actions than "just ask one giant LLM to guess everything."
+Unlike standard smart home voice assistants that rely entirely on large, unpredictable generative models, this system provides a **deterministic-first** approach. 
 
-## Pro Version
+1. **Voice Input**: You give a command (e.g., "turn on the basement stairs light").
+2. **Deterministic Resolution**: The system queries a local PostgreSQL/pgvector database using fast lexical and vector similarity searches to identify the exact target devices.
+3. **Intent Parsing**: A highly-optimized local AI model translates the command into a strict JSON execution plan.
+4. **Safety Verification**: Security rules are applied. Dangerous commands are blocked or prompt for confirmation.
+5. **Execution**: The sanitized plan is safely executed via Home Assistant service calls. Questions unrelated to home automation automatically fall back to a general conversational LLM.
 
-### Goals
-- Deterministic entity resolution.
-- Strict JSON action plans.
-- Safety-first execution boundaries.
-- HA-native conversation integration.
+The result is extremely high accuracy and low latency without randomly guessing unintended actions.
 
-### Architecture
+## Architecture
 
-```mermaid
-flowchart LR
-    U[User Voice/Text] --> HA[Home Assistant Assist Pipeline]
-    HA --> AG[Custom Conversation Agent]
-    AG --> ORCH[Orchestrator API :5000]
-    ORCH --> RES[Resolver\nLexical + Vector]
-    RES --> DB[(Postgres + pgvector)]
-    ORCH --> INTENT[Intent LLM :8081]
-    ORCH --> GLM[Fallback LLM :8080]
-    ORCH --> PLAN[JSON Plan]
-    PLAN --> AG
-    AG --> EXEC[HA service calls]
+![Cloud Architecture](assets/architecture.png)
+
+## Request Flow
+
+![Sequence Flow](assets/flow.png)
+
+## Technical Deep Dive
+
+This orchestrator is engineered for production-grade scale, speed, and safety.
+
+### 1. High-Performance Rust Core
+The backend is written entirely in **Rust** using `tokio` for massive asynchronous I/O and `axum` for HTTP routing. It is specifically designed for deterministic entity resolution, avoiding hallucination via heavily constrained constraints.
+
+### 2. Local AI & ONNX Inference
+Intent parsing is completely offline and heavily optimized. We embed **Qwen 2.5 (1.5B)** directly into the orchestrator memory space via `ort` (ONNX Runtime v2.0). Using direct CUDA & TensorRT hooks alongside SIMD CPU fallbacks (AVX-512, f16 operations), intent inference executes in milliseconds without HTTP latency overhead.
+
+### 3. SIMD-Accelerated Vector Retrieval
+Device candidate search pairs standard PostgreSQL caching capabilities with ultra-fast vector distance scoring. In-memory embeddings mapped from `pgvector` are ranked using heavily unrolled, AVX2 / AVX-512 explicitly vectorized dot-product arithmetic kernels dynamically dispatched via `multiversion`. 
+
+### 4. Safety Gates & Verification
+Before execution, candidate actions must clear strict safety domains. Critical triggers (e.g., locks, garage doors) will force explicit confirmation dialogue blocks, and unclear commands with `score < 0.70` trigger dynamic clarification intents back to the user to prevent erroneous state mutations.
+
+### 5. Multi-Room Batch Execution
+Commands targeting widespread entity clusters natively expand constraints (e.g. up to 20 devices parsed concurrently) when explicit phrases ("all", "every") are detected. Asynchronous SQL database pool connections actively tunable up and down directly under massive Voice Command payloads.
+
+## How to Deploy
+
+### Prerequisites
+- A modern Linux server (x86_64 or ARM64)
+- PostgreSQL 17 with the `pgvector` extension
+- Home Assistant core instance
+
+### Step 1: Install the Orchestrator Daemon
+1. Clone the repository and build the server binary natively:
+```bash
+git clone https://github.com/ParkWardRR/ha-deterministic-voice-agent
+cd ha-deterministic-voice-agent/orchestrator-rs
+cargo build --release
+```
+2. Move the built executable (`target/release/orchestrator`) into your `/opt/` or global bin directory.
+
+### Step 2: Config Environment Setup
+Define your explicit integration mapping via `.env` parameter configurations to customize DB size limits:
+```ini
+LISTEN_ADDR=0.0.0.0:5000
+PG_DSN=postgres://agent:password@localhost:5432/agent
+HA_URL=http://homeassistant.local:8123
+HA_TOKEN=your_long_lived_ha_access_token
+MODEL_DIR=/path/to/onnx/weights
+DB_MIN_CONNS=2
+DB_MAX_CONNS=20
 ```
 
-### Request Flow
-
-```mermaid
-sequenceDiagram
-    participant User
-    participant HA as Home Assistant
-    participant Agent as Custom Agent
-    participant Orch as Orchestrator
-    participant DB as pgvector
-    participant Q as Intent LLM
-    participant G as Fallback LLM
-
-    User->>HA: "turn on basement stairs light"
-    HA->>Agent: conversation input
-    Agent->>Orch: POST /v1/ha/process
-    Orch->>DB: lexical + vector candidates
-    Orch->>Q: strict JSON intent parse
-    Q-->>Orch: actions[]
-    Orch-->>Agent: plan + speech
-    Agent->>HA: execute service calls
-    HA-->>User: spoken confirmation
-
-    User->>HA: "what is the weather?"
-    HA->>Agent: conversation input
-    Agent->>Orch: POST /v1/ha/process
-    Orch->>G: non-HA question
-    G-->>Orch: short answer
-    Orch-->>User: fallback response
+### Step 3: Run the Service
+Ensure the daemon remains running smoothly via `systemd` process managers:
+```bash
+sudo cp systemd/zagato-agent.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now zagato-agent.service
 ```
 
-### Safety Model
-- Domain allowlist + blocklist.
-- Clarify when confidence is low.
-- Clarify when top candidates are too close.
-- Confirmation gates for risky targets.
-- Action cap per request.
-
-## Repo Layout
-
-- `orchestrator-rs/`: Rust orchestrator API and Entity Sync Daemon (`/v1/ha/process`, `/healthz`, `sync`)
-- `homeassistant/custom_components/deterministic_agent/`: HA integration scaffold
-
-## Quick Start
-
-
-1. Deploy orchestrator + sync script to your LLM host (`/opt/ha-deterministic-agent/`).
-2. Configure env files in `/etc/ha-deterministic-agent/`.
-3. Install `systemd/*.service` and `systemd/*.timer`.
-4. Copy `homeassistant/custom_components/deterministic_agent/` into HA `custom_components`.
-5. Restart HA core and select the custom conversation engine in Assist pipeline.
-
-## Runtime Endpoints
-
-- `POST /v1/ha/process`
-- `GET /healthz`
+### Step 4: Home Assistant Integration
+1. Move the Python engine bridge from `homeassistant/custom_components/deterministic_agent` into your Home Assistant installations `config/custom_components/` directory.
+2. Restart Home Assistant Core securely to apply.
+3. Navigate to **Settings > Voice Assistants**, designate the new Deterministic Agent engine, and allocate it as your core Pipeline backend conversation protocol!
 
 ## Validation Matrix
 
-- Exact device action resolves correctly.
-- Ambiguous command requests clarification.
-- Blocked domain does not execute.
-- Non-HA question routes to fallback LLM.
+- **Exact Action**: Deterministically matches specific hardware IDs successfully.
+- **Ambiguity**: Actively halts inference execution processes to natively request clarification on conflicts.
+- **Security Control**: Isolated commands attempting hazardous target interactions are physically halted and blocked.
+- **General Queries**: Arbitrary LLM questioning successfully proxy via backend conversational inference routing gracefully.
 
-## Notes
-
-- CPU SIMD: Rust will intelligently dispatch `target-feature` kernels (AVX-512, AVX2) at runtime to calculate cosine similarities across the vector candidate database extremely fast.
-- The Rust Orchestrator integrates ONNX Runtime (`ort`) to embed Home Assistant vectors in-process using CUDA (with an AVX CPU fallback), removing the need for a standalone Python embedding HTTP server!
+## Repository Layout
+- `orchestrator-rs/`: The Rust backend orchestrator engine processing and validation loop APIs.
+- `homeassistant/custom_components/`: Home Assistant custom interface proxy payload relay protocols.
