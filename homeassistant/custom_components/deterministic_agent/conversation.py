@@ -51,12 +51,13 @@ class DeterministicConversationEntity(ConversationEntity):
         self._entry = entry
         self._session = async_get_clientsession(hass)
         self._attr_unique_id = f"deterministic_agent_{entry.entry_id}"
+        self._pending_actions: dict[str, list[dict[str, Any]]] = {}
 
     @property
     def supported_languages(self) -> list[str] | str:
         return ["*"]
 
-    async def _async_handle_message(self, user_input: ConversationInput, chat_log) -> ConversationResult:
+    async def _async_handle_message(self, user_input: ConversationInput, chat_log: list[dict[str, Any]] | None = None) -> ConversationResult:
         """Handle modern ConversationEntity API."""
         return await self._async_process_input(user_input)
 
@@ -80,6 +81,19 @@ class DeterministicConversationEntity(ConversationEntity):
             "text": user_input.text,
             "conversation_id": user_input.conversation_id,
         }
+
+        # Check for pending confirmations
+        conv_id = user_input.conversation_id
+        if conv_id and conv_id in self._pending_actions:
+            pending = self._pending_actions.pop(conv_id)
+            user_text = user_input.text.lower().strip()
+            if user_text in ["yes", "yeah", "yep", "sure", "do it", "confirm", "ok", "okay"]:
+                error = await self._async_execute_actions(pending, user_input)
+                if error:
+                    return self._build_result(user_input, error)
+                return self._build_result(user_input, "Done.")
+            else:
+                return self._build_result(user_input, "Action cancelled.")
 
         try:
             async with self._session.post(
@@ -106,6 +120,9 @@ class DeterministicConversationEntity(ConversationEntity):
         needs_clarification = bool(body.get("needs_clarification"))
         needs_confirmation = bool(body.get("needs_confirmation"))
         actions = body.get("actions") or []
+
+        if needs_confirmation and actions and conv_id:
+            self._pending_actions[conv_id] = actions
 
         if not needs_clarification and not needs_confirmation and actions:
             error = await self._async_execute_actions(actions, user_input)
