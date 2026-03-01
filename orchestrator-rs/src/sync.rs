@@ -243,7 +243,7 @@ async fn upsert_items(
         let vector = pgvector::Vector::from(emb.clone());
         sqlx::query(
             "INSERT INTO catalog_items (kind, domain, entity_id, name, area, aliases, capabilities, enabled, embedding, updated_at) \
-             VALUES ($1, $2, $3, $4, $5, '[]', '{}', $6, $7, now()) \
+             VALUES ($1, $2, $3, $4, $5, '{}'::text[], '{}'::jsonb, $6, $7, now()) \
              ON CONFLICT (entity_id) DO UPDATE SET \
                 kind = EXCLUDED.kind, domain = EXCLUDED.domain, name = EXCLUDED.name, \
                 area = EXCLUDED.area, enabled = EXCLUDED.enabled, embedding = EXCLUDED.embedding, updated_at = now()"
