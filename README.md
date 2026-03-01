@@ -3,14 +3,14 @@
 <div align="center">
 
 [![Rust](https://img.shields.io/badge/Rust-1.80+-000000?logo=rust&style=for-the-badge)](https://www.rust-lang.org/)
-[![ONNX Runtime](https://img.shields.io/badge/ONNX_v2.0-CUDA/_TensorRT-005CED?logo=onnx&style=for-the-badge)](https://onnxruntime.ai/)
 [![NVIDIA CUDA](https://img.shields.io/badge/CUDA-Hardware%20Accel-76B900?logo=nvidia&style=for-the-badge)](https://developer.nvidia.com/cuda-toolkit)
-[![Tokio](https://img.shields.io/badge/Async-Tokio-DCDCDC?style=for-the-badge)](https://tokio.rs/)
-[![Axum](https://img.shields.io/badge/HTTP-Axum-EF4444?style=for-the-badge)](https://github.com/tokio-rs/axum)
+[![ONNX Runtime](https://img.shields.io/badge/ONNX_v2.0-CUDA/_TensorRT-005CED?logo=onnx&style=for-the-badge)](https://onnxruntime.ai/)
 [![SIMD](https://img.shields.io/badge/SIMD-AVX--512-FF5722?style=for-the-badge)](https://en.wikipedia.org/wiki/Advanced_Vector_Extensions)
 [![ARM NEON](https://img.shields.io/badge/ARM_NEON-Hardware%20Accel-0091BD?logo=arm&style=for-the-badge)](https://developer.arm.com/architectures/instruction-sets/simd-isas/neon)
+[![Tokio](https://img.shields.io/badge/Async-Tokio-DCDCDC?style=for-the-badge)](https://tokio.rs/)
 [![pgvector](https://img.shields.io/badge/pgvector-HNSW%20ANN-4B5563?style=for-the-badge)](https://github.com/pgvector/pgvector)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-336791?logo=postgresql&style=for-the-badge)](https://www.postgresql.org/)
+[![Axum](https://img.shields.io/badge/HTTP-Axum-EF4444?style=for-the-badge)](https://github.com/tokio-rs/axum)
 [![Home Assistant](https://img.shields.io/badge/Home%20Assistant-Custom%20Agent-18BCF2?logo=homeassistant&style=for-the-badge)](https://www.home-assistant.io/)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&style=for-the-badge)](https://www.python.org/)
 [![Linux](https://img.shields.io/badge/Linux-x86__64_/_ARM64-FCC624?logo=linux&style=for-the-badge)](https://www.kernel.org/)
@@ -19,6 +19,20 @@
 *A deterministic-first voice control orchestrator for Home Assistant written in highly-optimized Rust.*
 
 </div>
+
+## Table of Contents
+- [Overview](#overview)
+- [Concept Overview (Simple Explanation)](#concept-overview-simple-explanation)
+- [Architecture Review](#architecture-review)
+- [Request Flow](#request-flow)
+- [AI Entity Resolution Process](#ai-entity-resolution-process)
+- [System Safety Gates](#system-safety-gates)
+- [Technical Deep Dive](#technical-deep-dive)
+- [Hardware Specifications](#hardware-specifications)
+- [How to Deploy](#how-to-deploy)
+  - [Home Assistant Integration Guide](#step-4-home-assistant-integration-guide)
+- [Validation & Performance Matrix](#validation--performance-matrix)
+- [Repository Layout](#repository-layout)
 
 ## Overview
 
@@ -127,10 +141,18 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now zagato-agent.service
 ```
 
-### Step 4: Home Assistant Integration
-1. Move the Python engine bridge from `homeassistant/custom_components/deterministic_agent` into your Home Assistant installations `config/custom_components/` directory.
-2. Restart Home Assistant Core securely to apply.
-3. Navigate to **Settings > Voice Assistants**, designate the new Deterministic Agent engine, and allocate it as your core Pipeline backend conversation protocol!
+### Step 4: Home Assistant Integration Guide
+
+The system utilizes a custom, lightweight Python bridge to route conversational events from Home Assistant's internal speech-to-text pipeline out to our high-performance Rust orchestrator nodes.
+
+1. **Deploy the Component**: Move the Python engine bridge from this repository located at `homeassistant/custom_components/deterministic_agent` into your Home Assistant installations `config/custom_components/` directory.
+2. **Reboot Core**: Restart the Home Assistant Core system securely so the registry can aggressively hash and cache the new integration's `manifest.json`.
+3. **Register the Hub**: Navigate to **Settings > Devices & Services > Add Integration**, and search for `Deterministic Voice Agent`. Proceed through the UI configuration flow to map your `LISTEN_ADDR` socket.
+4. **Pipeline Assignment**: Finally, navigate to **Settings > Voice Assistants**, create or select an active Voice Pipeline, and nominate the newly added `Deterministic Agent` engine as your designated conversation protocol!
+
+**Advanced Features within HA:**
+- *Real-time States:* The proxy natively relays `user_input.conversation_id` tokens securely allowing deterministic contextual memory (e.g., executing "turn off the lights" immediately following "turn on the kitchen").
+- *Service Execution:* Permitted actions returned by the Rust daemon invoke local `hass.services.async_call` methods physically bypassing external network clouds entirely.
 
 ## Validation & Performance Matrix
 
