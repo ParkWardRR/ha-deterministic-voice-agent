@@ -2,13 +2,12 @@
 
 <div align="center">
 
-[![CI](https://github.com/ParkWardRR/ha-deterministic-voice-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/ParkWardRR/ha-deterministic-voice-agent/actions/workflows/ci.yml)
 [![Rust](https://img.shields.io/badge/Rust-1.80+-000000?logo=rust)](https://www.rust-lang.org/)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python)](https://www.python.org/)
 [![Home%20Assistant](https://img.shields.io/badge/Home%20Assistant-Custom%20Conversation%20Agent-18BCF2?logo=homeassistant)](https://www.home-assistant.io/)
 [![Postgres](https://img.shields.io/badge/PostgreSQL-17-336791?logo=postgresql)](https://www.postgresql.org/)
 [![ONNX](https://img.shields.io/badge/ONNX_Runtime-v2.0-005CED?logo=onnx)](https://onnxruntime.ai/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](./LICENSE)
+[![License: Blue Oak 1.0.0](https://img.shields.io/badge/License-Blue_Oak_1.0.0-blue.svg)](https://blueoakcouncil.org/license/1.0.0)
 
 *A deterministic-first voice control orchestrator for Home Assistant written in highly-optimized Rust.*
 
@@ -26,13 +25,32 @@ Unlike standard smart home voice assistants that rely entirely on large, unpredi
 
 The result is extremely high accuracy and low latency without randomly guessing unintended actions.
 
-## Architecture
+## Concept Overview (Simple Explanation)
+
+Think of this like a smart home referee:
+1. You say: "turn on basement lights".
+2. The referee checks a local list of your devices (fast, deterministic).
+3. A small model picks the exact action from those candidates only.
+4. Safety rules block dangerous stuff or ask follow-up questions.
+5. If your question is not about devices ("what's the weather?"), it sends it to a chat model.
+
+Result: fewer wrong-device actions than "just ask one giant LLM to guess everything."
+
+## Architecture Review
 
 ![Cloud Architecture](assets/architecture.png)
 
 ## Request Flow
 
-![Sequence Flow](assets/flow.png)
+![Sequence Flow](assets/request_flow.png)
+
+## AI Entity Resolution Process
+
+![Entity Resolution](assets/entity_resolution.png)
+
+## System Safety Gates
+
+![Safety Flow](assets/safety_gate.png)
 
 ## Technical Deep Dive
 
