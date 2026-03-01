@@ -52,7 +52,7 @@ impl LocalIntentClient {
         }
 
         let prompt = format!(
-            "<|im_start|>system\nYou are an intent parser. Output ONLY valid JSON matching this schema:\n{{\"actions\": [{{\"entity_id\": \"...\", \"service\": \"...\", \"service_data\": {{}} }}], \"speech\": \"...\"}}\nRules: entity_id MUST be one of the candidates.<|im_end|>\n<|im_start|>user\nUser said: \"{}\"\nCandidates:\n{}\nOutput JSON:<|im_end|>\n<|im_start|>assistant\n",
+            "<|im_start|>system\nYou are an intent parser. Output ONLY valid JSON matching this schema:\n{{\"plan\": [ {{\"type\": \"ha_call\", \"entity_id\": \"...\", \"service\": \"...\", \"service_data\": {{}} }}, {{\"type\": \"ask_clarifying\", \"speech\": \"...\"}}, {{\"type\": \"non_ha\", \"speech\": \"...\"}} ]}}\nRules: entity_id MUST be one of the candidates.<|im_end|>\n<|im_start|>user\nUser said: \"{}\"\nCandidates:\n{}\nOutput JSON:<|im_end|>\n<|im_start|>assistant\n",
             user_text, candidate_lines.join("\n")
         );
 
@@ -122,7 +122,13 @@ impl LocalIntentClient {
             .map_err(|e| format!("Local ONNX Intent JSON parse error: {} (raw: {})", e, content))?;
 
         let valid_ids: std::collections::HashSet<_> = candidates.iter().map(|c| c.entity_id.clone()).collect();
-        plan.actions.retain(|a| valid_ids.contains(&a.entity_id));
+        plan.plan.retain(|step| {
+            if let crate::models::PlanStep::HaCall { entity_id, .. } = step {
+                valid_ids.contains(entity_id)
+            } else {
+                true // Keep clarification and non-HA responses
+            }
+        });
 
         Ok(plan)
     }

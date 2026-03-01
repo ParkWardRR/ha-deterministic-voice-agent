@@ -191,8 +191,22 @@ async fn handle_process(
     let start = Instant::now();
     tracing::info!("[{}] Processing: {:?}", conv_id, req.text);
 
-    // Step 1: Resolve Entities
-    let candidates: Vec<Candidate> = match state.resolver.resolve(&req.text).await {
+    // Extract possible area verbally if req.area is missing
+    let mut area_scope: Option<String> = req.area.clone();
+    if area_scope.is_none() {
+        let lower = req.text.to_lowercase();
+        let rooms = ["kitchen", "basement", "living room", "bedroom", "office", "garage", "dining room"];
+        for r in rooms {
+            if lower.contains(r) {
+                tracing::info!("Heuristically extracted area scope: {}", r);
+                area_scope = Some(r.to_string());
+                break;
+            }
+        }
+    }
+
+    // Step 1: Resolve Entities (V2 Scopes)
+    let candidates: Vec<Candidate> = match state.resolver.resolve(&req.text, area_scope.as_deref()).await {
         Ok(c) => c,
         Err(e) => {
             tracing::error!("Resolver error: {}", e);
@@ -287,12 +301,11 @@ async fn handle_process(
         Err(e) => {
             tracing::error!("Intent LLM error: {}, falling back to single best action", e);
             IntentPlan {
-                actions: vec![IntentAction {
+                plan: vec![crate::models::PlanStep::HaCall {
                     entity_id: candidates[0].entity_id.clone(),
                     service: guess_service(&req.text, &candidates[0].domain),
                     service_data: None,
                 }],
-                speech: format!("OK, {} {}.", guess_service_verb(&req.text), candidates[0].name),
             }
         }
     };
@@ -305,40 +318,55 @@ async fn handle_process(
 
     let mut final_actions = Vec::new();
     let mut recorded_entities = Vec::new();
+    let mut final_speech = String::new();
+    let mut is_clarifying = false;
+    let mut is_non_ha = None;
     
-    for a in plan.actions {
-        let domain = domain_of(&a.entity_id);
-        if !state.safety.is_allowed(&domain) {
-            tracing::info!("BLOCKED: domain {:?} for {}", domain, a.entity_id);
-            continue;
-        }
+    for step in plan.plan {
+        match step {
+            crate::models::PlanStep::HaCall { entity_id, service, service_data } => {
+                let domain = domain_of(&entity_id);
+                if !state.safety.is_allowed(&domain) {
+                    tracing::info!("BLOCKED: domain {:?} for {}", domain, entity_id);
+                    continue;
+                }
 
-        if state.safety.needs_confirmation(&domain) || state.safety.needs_entity_confirmation(&a.entity_id) {
-            let target = candidate_names.get(&a.entity_id).cloned().unwrap_or_else(|| a.entity_id.clone());
-            return ok_resp(ProcessResponse {
-                actions: vec![Action {
-                    entity_id: a.entity_id,
+                if state.safety.needs_confirmation(&domain) || state.safety.needs_entity_confirmation(&entity_id) {
+                    let target = candidate_names.get(&entity_id).cloned().unwrap_or_else(|| entity_id.clone());
+                    return ok_resp(ProcessResponse {
+                        actions: vec![Action {
+                            entity_id: entity_id.clone(),
+                            domain: domain.clone(),
+                            service: service.clone(),
+                            service_data: service_data.clone(),
+                        }],
+                        speech: format!("Are you sure you want to {} {}?", service, target),
+                        needs_confirmation: true,
+                        needs_clarification: false,
+                        non_ha_response: None,
+                    });
+                }
+
+                recorded_entities.push(entity_id.clone());
+                final_actions.push(Action {
+                    entity_id,
                     domain,
-                    service: a.service.clone(),
-                    service_data: a.service_data,
-                }],
-                speech: format!("Are you sure you want to {} {}?", a.service, target),
-                needs_confirmation: true,
-                needs_clarification: false,
-                non_ha_response: None,
-            });
+                    service,
+                    service_data,
+                });
+            },
+            crate::models::PlanStep::AskClarifying { speech } => {
+                final_speech = speech;
+                is_clarifying = true;
+            },
+            crate::models::PlanStep::NonHa { speech } => {
+                final_speech = speech.clone();
+                is_non_ha = Some(speech);
+            }
         }
-
-        recorded_entities.push(a.entity_id.clone());
-        final_actions.push(Action {
-            entity_id: a.entity_id,
-            domain,
-            service: a.service,
-            service_data: a.service_data,
-        });
     }
 
-    if final_actions.is_empty() {
+    if final_actions.is_empty() && final_speech.is_empty() {
         return ok_resp(ProcessResponse {
             actions: vec![],
             speech: "I can't do that for safety reasons.".to_string(),
@@ -357,10 +385,10 @@ async fn handle_process(
     // Record turn in context memory
     state.memory.record(conv_id, &req.text, &recorded_entities, &final_actions);
 
-    let speech = if plan.speech.is_empty() {
+    let speech = if final_speech.is_empty() && !final_actions.is_empty() {
         "Done.".to_string()
     } else {
-        plan.speech
+        final_speech
     };
 
     // Step 7: Actually execute the actions against Home Assistant!
@@ -416,8 +444,8 @@ async fn handle_process(
         actions: final_actions,
         speech,
         needs_confirmation: false,
-        needs_clarification: false,
-        non_ha_response: None,
+        needs_clarification: is_clarifying,
+        non_ha_response: is_non_ha,
     })
 }
 

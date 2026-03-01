@@ -60,11 +60,17 @@ impl Resolver {
         self.cfg.clone()
     }
 
-    pub async fn resolve(&self, text: &str) -> Result<Vec<Candidate>, sqlx::Error> {
+    pub async fn resolve(&self, text: &str, area_scope: Option<&str>) -> Result<Vec<Candidate>, sqlx::Error> {
         let lower = text.trim().to_lowercase();
 
         // Pass A: Lexical matching from fast in-memory cache
-        let lexical = self.cache.lexical_search(&lower);
+        let mut lexical = self.cache.lexical_search(&lower);
+
+        // Pre-inference Scope Filter (V2)
+        if let Some(scope) = area_scope {
+            let scope_lower = scope.to_lowercase();
+            lexical.retain(|c| c.area.to_lowercase() == scope_lower || c.area.is_empty());
+        }
 
         // Strong match short-circuit
         for c in &lexical {
@@ -92,7 +98,7 @@ impl Resolver {
         }
 
         if let Some(emb) = emb_vec {
-            vector = self.vector_search(&emb).await.unwrap_or_default();
+            vector = self.vector_search(&emb, area_scope).await.unwrap_or_default();
         } else {
             tracing::warn!("Embedder error, falling back to basic text search");
             vector = self.text_search(&lower).await.unwrap_or_default();
@@ -125,7 +131,8 @@ impl Resolver {
         // Sort descending
         merged.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
 
-        let max_candidates = if lower.contains("all ") || lower.contains("every ") { 20 } else { 8 };
+        // V2 Budgets: Hard cap LLM context window to N=20 maximum
+        let max_candidates = 20;
         if merged.len() > max_candidates {
             merged.truncate(max_candidates);
         }
@@ -133,13 +140,20 @@ impl Resolver {
         Ok(merged)
     }
 
-    async fn vector_search(&self, embedding: &[f32]) -> Result<Vec<Candidate>, sqlx::Error> {
+    async fn vector_search(&self, embedding: &[f32], area_scope: Option<&str>) -> Result<Vec<Candidate>, sqlx::Error> {
         // Load all embeddings from DB to rank them in-memory using our SIMD path
         // In a real huge DB, we'd use pgvector index `ORDER BY embedding <=> $1 LIMIT 8` directly.
         // But the user requested SIMD avx2 batched cosine ops locally in memory!
         
-        let rows = sqlx::query("SELECT entity_id, embedding FROM catalog_items WHERE enabled = true")
-            .fetch_all(&self.pool).await?;
+        // V2 Scope bounds
+        let rows = if let Some(scope) = area_scope {
+            sqlx::query("SELECT entity_id, embedding FROM catalog_items WHERE enabled = true AND (LOWER(area) = $1 OR area IS NULL OR area = '')")
+                .bind(scope.to_lowercase())
+                .fetch_all(&self.pool).await?
+        } else {
+            sqlx::query("SELECT entity_id, embedding FROM catalog_items WHERE enabled = true")
+                .fetch_all(&self.pool).await?
+        };
 
         let mut candidates_vec = Vec::with_capacity(rows.len());
         let mut eids = Vec::with_capacity(rows.len());

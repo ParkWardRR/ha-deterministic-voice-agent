@@ -7,6 +7,8 @@ pub struct ProcessRequest {
     pub text: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub conversation_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub area: Option<String>,
 }
 
 // Action represents a single HA service call.
@@ -53,13 +55,30 @@ pub struct Candidate {
     pub score: f64, // 1.0 = perfect match, 0.0 = no match
 }
 
-// IntentPlan is the parsed plan from the intent LLM.
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(tag = "type")]
+pub enum PlanStep {
+    #[serde(rename = "ha_call")]
+    HaCall {
+        entity_id: String,
+        service: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        service_data: Option<serde_json::Value>,
+    },
+    #[serde(rename = "ask_clarifying")]
+    AskClarifying {
+        speech: String,
+    },
+    #[serde(rename = "non_ha")]
+    NonHa {
+        speech: String,
+    },
+}
+
+// IntentPlan is the explicitly strict parsed V2 array plan from the intent LLM.
 #[derive(Debug, Deserialize, Serialize)]
 pub struct IntentPlan {
-    #[serde(default)]
-    pub actions: Vec<IntentAction>,
-    #[serde(default)]
-    pub speech: String,
+    pub plan: Vec<PlanStep>,
 }
 
 // IntentAction is a single action within a plan.

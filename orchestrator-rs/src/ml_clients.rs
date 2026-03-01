@@ -186,14 +186,12 @@ impl IntentClient {
         }
 
         let system_prompt = r#"You are an intent parser for Home Assistant voice commands. Given user text and candidate entities, output ONLY valid JSON matching this schema:
-{"actions": [{"entity_id": "...", "service": "...", "service_data": {}}], "speech": "..."}
+{"plan": [ {"type": "ha_call", "entity_id": "...", "service": "...", "service_data": {}}, {"type": "ask_clarifying", "speech": "..."}, {"type": "non_ha", "speech": "..."} ]}
 
 Rules:
 - entity_id MUST be one of the provided candidates. Never invent entity IDs.
 - service must be a valid HA service for the domain (e.g., turn_on, turn_off, toggle for lights/switches; media_play, media_pause for media_player).
 - service_data is optional (e.g., {"brightness": 128} for lights).
-- speech is a short confirmation message (e.g., "Turning on the basement stairs light").
-- For compound commands, include multiple actions.
 - Output ONLY the JSON object. No markdown, no explanation."#;
 
         let user_prompt = format!("User said: \"{}\"\n\nCandidate entities:\n{}\n\nOutput the JSON plan:",
@@ -250,7 +248,13 @@ Rules:
 
         // Validate IDs
         let valid_ids: std::collections::HashSet<_> = candidates.iter().map(|c| c.entity_id.clone()).collect();
-        plan.actions.retain(|a| valid_ids.contains(&a.entity_id));
+        plan.plan.retain(|step| {
+            if let crate::models::PlanStep::HaCall { entity_id, .. } = step {
+                valid_ids.contains(entity_id)
+            } else {
+                true 
+            }
+        });
 
         Ok(plan)
     }
