@@ -49,16 +49,25 @@ struct HAState {
 
 pub async fn run_ha_websocket(cfg: Arc<Config>, cache: Arc<EntityCache>) {
     loop {
-        if cfg.ha_url.is_empty() || cfg.ha_token.is_empty() {
+        let trimmed_url = cfg.ha_url.trim();
+        if trimmed_url.is_empty() || cfg.ha_token.trim().is_empty() {
             tracing::warn!("HA_URL or HA_TOKEN not set, skipping WebSocket real-time sync");
             return;
         }
 
-        let ws_url = cfg.ha_url.replace("http://", "ws://").replace("https://", "wss://");
+        let ws_url = trimmed_url.replace("http://", "ws://").replace("https://", "wss://");
         let url = format!("{}/api/websocket", ws_url);
         
         tracing::info!("Connecting to HA WebSocket at {}", url);
-        match connect_async(Url::parse(&url).unwrap()).await {
+        let parsed_url = match Url::parse(&url) {
+            Ok(u) => u,
+            Err(e) => {
+                tracing::error!("Invalid HA WebSocket URL ('{}'): {}", url, e);
+                return;
+            }
+        };
+
+        match connect_async(parsed_url).await {
             Ok((mut ws_stream, _)) => {
                 tracing::info!("WebSocket connected. Authenticating...");
                 
