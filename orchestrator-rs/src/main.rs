@@ -16,6 +16,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Instant;
 use tokio::net::TcpListener;
+use metrics_exporter_prometheus::PrometheusHandle;
 
 mod cache;
 mod config;
@@ -54,6 +55,7 @@ struct AppState {
     safety: Arc<SafetyGate>,
     memory: Arc<ConversationMemory>,
     start_time: Instant,
+    metrics: PrometheusHandle,
 }
 
 #[tokio::main]
@@ -78,6 +80,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 async fn run_server(cfg: Arc<Config>) -> Result<(), Box<dyn std::error::Error>> {
     let start_time = Instant::now();
+    let metrics_handle = metrics_exporter_prometheus::PrometheusBuilder::new().install_recorder().expect("Failed to setup metrics");
 
     let embedder = if cfg.embedder_url.is_empty() {
         None
@@ -89,10 +92,20 @@ async fn run_server(cfg: Arc<Config>) -> Result<(), Box<dyn std::error::Error>> 
     
     // Connect to DB and initialize the resolver
     let pool = sqlx::postgres::PgPoolOptions::new()
-        .max_connections(10)
+        .max_connections(20)
         .min_connections(2)
+        .idle_timeout(std::time::Duration::from_secs(60))
         .connect(&cfg.pg_dsn)
         .await?;
+
+    let pool_metrics = pool.clone();
+    tokio::spawn(async move {
+        loop {
+            tokio::time::sleep(tokio::time::Duration::from_secs(15)).await;
+            metrics::gauge!("db_pool_idle").set(pool_metrics.num_idle() as f64);
+            metrics::gauge!("db_pool_size").set(pool_metrics.size() as f64);
+        }
+    });
 
     let resolver = Arc::new(Resolver::new(pool, cache.clone(), cfg.clone(), embedder).await?);
     
@@ -125,11 +138,13 @@ async fn run_server(cfg: Arc<Config>) -> Result<(), Box<dyn std::error::Error>> 
         safety,
         memory,
         start_time,
+        metrics: metrics_handle,
     });
 
     let app = Router::new()
         .route("/v1/ha/process", post(handle_process))
         .route("/healthz", get(handle_health))
+        .route("/metrics", get(handle_metrics))
         .with_state(state);
 
     tracing::info!("Deterministic agent orchestrator listening on {}", cfg.listen_addr);
@@ -313,9 +328,10 @@ async fn handle_process(
         });
     }
 
-    if final_actions.len() > 5 {
-        final_actions.truncate(5);
-        recorded_entities.truncate(5);
+    let max_actions = if req.text.to_lowercase().contains("all ") || req.text.to_lowercase().contains("every ") { 20 } else { 5 };
+    if final_actions.len() > max_actions {
+        final_actions.truncate(max_actions);
+        recorded_entities.truncate(max_actions);
     }
 
     // Record turn in context memory
@@ -372,7 +388,10 @@ async fn handle_process(
         }
     }
 
-    tracing::info!("Planned {} actions in {:?}", final_actions.len(), start.elapsed());
+    let elapsed = start.elapsed();
+    tracing::info!("Planned {} actions in {:?}", final_actions.len(), elapsed);
+    metrics::histogram!("ha_process_duration_seconds").record(elapsed.as_secs_f64());
+
     ok_resp(ProcessResponse {
         actions: final_actions,
         speech,
@@ -403,6 +422,10 @@ async fn handle_health(State(state): State<Arc<AppState>>) -> Json<HealthRespons
         uptime: format!("{:?}", state.start_time.elapsed()),
         deps,
     })
+}
+
+async fn handle_metrics(State(state): State<Arc<AppState>>) -> String {
+    state.metrics.render()
 }
 
 fn ok_resp(resp: ProcessResponse) -> (StatusCode, Json<ProcessResponse>) {

@@ -125,8 +125,9 @@ impl Resolver {
         // Sort descending
         merged.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
 
-        if merged.len() > 8 {
-            merged.truncate(8);
+        let max_candidates = if lower.contains("all ") || lower.contains("every ") { 20 } else { 8 };
+        if merged.len() > max_candidates {
+            merged.truncate(max_candidates);
         }
 
         Ok(merged)
@@ -152,7 +153,7 @@ impl Resolver {
         }
 
         // Use our SIMD batch ranker
-        let ranked = crate::simd_ops::batch_cosine_rank(embedding, &candidates_vec, 8);
+        let ranked = crate::simd_ops::batch_cosine_rank(embedding, &candidates_vec, 20);
 
         let mut top_candidates = Vec::with_capacity(ranked.len());
         for (idx, score) in ranked {
