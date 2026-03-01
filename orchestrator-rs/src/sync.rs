@@ -4,6 +4,7 @@ use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use sqlx::PgPool;
 use std::time::Duration;
+use url::Url;
 
 #[derive(Debug, Deserialize)]
 struct HAState {
@@ -40,10 +41,16 @@ pub async fn run_sync(cfg: &Config) -> Result<(), Box<dyn std::error::Error>> {
         return Err("HA_URL and HA_TOKEN must be set for sync".into());
     }
 
-    tracing::info!("Fetching HA states from {}...", cfg.ha_url);
+    let parsed_url = match Url::parse(&cfg.ha_url) {
+        Ok(u) => u,
+        Err(e) => return Err(format!("Invalid HA_URL ({}): {}", cfg.ha_url, e).into()),
+    };
+    let api_url = parsed_url.join("api/states")?;
+
+    tracing::info!("Fetching HA states from {}...", api_url);
     let client = Client::builder().timeout(Duration::from_secs(30)).build()?;
     let resp = client
-        .get(format!("{}/api/states", cfg.ha_url))
+        .get(api_url.as_str())
         .header("Authorization", format!("Bearer {}", cfg.ha_token))
         .send()
         .await?;
