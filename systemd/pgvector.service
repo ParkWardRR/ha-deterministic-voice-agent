@@ -1,0 +1,27 @@
+[Unit]
+Description=Deterministic Agent pgvector PostgreSQL (Podman)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+Environment=POSTGRES_DB=agent
+Environment=POSTGRES_USER=agent
+Environment=PGVECTOR_PORT=5432
+Environment=PGVECTOR_DATA_DIR=/var/lib/pgvector
+EnvironmentFile=-/etc/ha-deterministic-agent/pgvector.env
+ExecStartPre=-/usr/bin/podman rm -f pgvector
+ExecStart=/usr/bin/podman run --name pgvector --replace \
+  -e POSTGRES_DB=${POSTGRES_DB} \
+  -e POSTGRES_USER=${POSTGRES_USER} \
+  -e POSTGRES_PASSWORD=${POSTGRES_PASSWORD} \
+  -p ${PGVECTOR_PORT}:5432 \
+  -v ${PGVECTOR_DATA_DIR}:/var/lib/postgresql/data:Z \
+  docker.io/pgvector/pgvector:pg17
+ExecStop=/usr/bin/podman stop -t 10 pgvector
+ExecStopPost=-/usr/bin/podman rm -f pgvector
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

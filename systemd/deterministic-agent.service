@@ -1,0 +1,16 @@
+[Unit]
+Description=Deterministic HA Voice Orchestrator
+After=network-online.target pgvector.service intent-llm.service
+Wants=network-online.target
+Requires=pgvector.service intent-llm.service
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/ha-deterministic-agent
+EnvironmentFile=-/etc/ha-deterministic-agent/orchestrator.env
+ExecStart=/opt/ha-deterministic-agent/bin/agent
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

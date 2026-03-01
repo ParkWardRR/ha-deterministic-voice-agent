@@ -1,0 +1,27 @@
+[Unit]
+Description=Deterministic Agent Intent LLM (Qwen2.5-1.5B via llama-server)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=-/etc/ha-deterministic-agent/intent-llm.env
+ExecStart=/usr/bin/bash -lc 'exec /usr/local/bin/llama-server \
+  --model "${INTENT_MODEL_PATH:-/opt/models/Qwen2.5-1.5B-Instruct-Q8_0.gguf}" \
+  --host 0.0.0.0 \
+  --port "${INTENT_PORT:-8081}" \
+  --ctx-size "${INTENT_CTX_SIZE:-2048}" \
+  --n-gpu-layers "${INTENT_GPU_LAYERS:-99}" \
+  --threads "${INTENT_THREADS:-4}" \
+  --threads-batch "${INTENT_THREADS_BATCH:-4}" \
+  --flash-attn \
+  --jinja \
+  --temp "${INTENT_TEMP:-0.1}" \
+  --top-p "${INTENT_TOP_P:-1.0}" \
+  --repeat-penalty 1.0 \
+  --min-p 0.01'
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,13 @@
+[Unit]
+Description=Sync Home Assistant Entities into pgvector
+After=network-online.target pgvector.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/ha-deterministic-agent
+EnvironmentFile=/etc/ha-deterministic-agent/entity-sync.env
+ExecStart=/usr/bin/python3 /opt/ha-deterministic-agent/sync_entities.py
+
+[Install]
+WantedBy=multi-user.target
