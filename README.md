@@ -8,6 +8,7 @@
 [![Tokio](https://img.shields.io/badge/Async-Tokio-DCDCDC?style=for-the-badge)](https://tokio.rs/)
 [![Axum](https://img.shields.io/badge/HTTP-Axum-EF4444?style=for-the-badge)](https://github.com/tokio-rs/axum)
 [![SIMD](https://img.shields.io/badge/SIMD-AVX--512-FF5722?style=for-the-badge)](https://en.wikipedia.org/wiki/Advanced_Vector_Extensions)
+[![ARM NEON](https://img.shields.io/badge/ARM_NEON-Hardware%20Accel-0091BD?logo=arm&style=for-the-badge)](https://developer.arm.com/architectures/instruction-sets/simd-isas/neon)
 [![pgvector](https://img.shields.io/badge/pgvector-HNSW%20ANN-4B5563?style=for-the-badge)](https://github.com/pgvector/pgvector)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-336791?logo=postgresql&style=for-the-badge)](https://www.postgresql.org/)
 [![Home Assistant](https://img.shields.io/badge/Home%20Assistant-Custom%20Agent-18BCF2?logo=homeassistant&style=for-the-badge)](https://www.home-assistant.io/)
@@ -69,7 +70,7 @@ The backend is written entirely in **Rust** using `tokio` for massive multiplexe
 Intent parsing is completely offline and heavily optimized. We embed **Qwen 2.5 (1.5B)** directly into the orchestrator memory space via `ort` (ONNX Runtime v2.0). Using direct CUDA & TensorRT hooks alongside SIMD CPU fallbacks (AVX-512, fp16 computations), intent inference executes in milliseconds. We deploy custom tokenized sequences decoding greedily directly within the event loop, stripping out typical IPC REST latency layers.
 
 ### 3. SIMD-Accelerated Vector Retrieval
-Device candidate search pairs standard PostgreSQL caching capabilities with ultra-fast vector distance scoring. In-memory exact embeddings mapped from `pgvector` are ranked using heavily unrolled, AVX2 / AVX-512 explicitly vectorized dot-product arithmetic kernels dynamically dispatched via `multiversion` based on CPU detection at startup.
+Device candidate search pairs standard PostgreSQL caching capabilities with ultra-fast vector distance scoring. In-memory exact embeddings mapped from `pgvector` are ranked using heavily unrolled, AVX2 / AVX-512 explicitly vectorized dot-product arithmetic kernels dynamically dispatched via `multiversion` based on CPU detection at startup. **ARM NEON** extensions are natively supported for optimized inference on Apple Silicon and Raspberry Pi 5 workloads.
 
 ### 4. Safety Gates & Verification
 Before execution, candidate actions must clear strict safety domains. Critical triggers (e.g., locks, garage doors) force active WebSockets confirmation dialogue blocks requiring an exact boolean override back from the Home Assistant frontend, whereas ambiguous intent `candidates[0].score < 0.70` trigger dynamic clarification workflows back to the user prioritizing physical safety.
