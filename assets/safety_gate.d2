@@ -1,0 +1,20 @@
+direction: down
+
+action: {label: "Candidate Action\n(e.g. lock.open front_door)"; shape: oval; style.fill: "#e2e8f0"}
+allowed: {label: "Is Domain Allowed?"; shape: diamond; style.fill: "#fef08a"}
+blocklist: {label: "Is Domain Blocklisted?"; shape: diamond; style.fill: "#fef08a"}
+confirm: {label: "Needs Confirmation?"; shape: diamond; style.fill: "#fef08a"}
+block_unauth: {label: "Block · Unauthorized Domain"; shape: oval; style.fill: "#fca5a5"}
+block_danger: {label: "Block · Dangerous Service"; shape: oval; style.fill: "#fca5a5"}
+prompt: {label: "Prompt User via TTS\n'Are you sure?'"; shape: oval; style.fill: "#fde047"}
+return_ha: {label: "Return Safely to HA"; shape: oval; style.fill: "#86efac"}
+
+action -> allowed
+allowed -> block_unauth: "No"
+allowed -> blocklist: "Yes"
+
+blocklist -> block_danger: "Yes"
+blocklist -> confirm: "No"
+
+confirm -> prompt: "Yes"
+confirm -> return_ha: "No"

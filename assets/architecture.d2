@@ -1,0 +1,68 @@
+direction: right
+
+"External Inputs": {
+  style.stroke-dash: 5
+  style.stroke: "#94a3b8"
+  user: {
+    label: "User Voice Input"
+    shape: oval
+    style.fill: "#e2e8f0"
+  }
+}
+
+"Home Assistant": {
+  style.stroke: "#0ea5e9"
+  assist: "Assist Pipeline"
+  agent: {
+    label: "Deterministic Agent"
+    style.fill: "#bae6fd"
+  }
+  devices: {
+    label: "Smart Home Devices"
+    shape: cylinder
+    style.fill: "#e0f2fe"
+  }
+}
+
+"Rust Orchestrator (<50MB RAM)": {
+  style.stroke: "#10b981"
+  api: {
+    label: "Core API (:5000)"
+    style.fill: "#a7f3d0"
+  }
+  resolver: {
+    label: "Resolver Engine (AVX-512 SIMD)"
+    style.fill: "#d1fae5"
+  }
+  safety: "Safety Gate"
+}
+
+"Data & AI Runtime": {
+  style.stroke: "#8b5cf6"
+  db: {
+    label: "PostgreSQL + pgvector (NVMe)"
+    shape: cylinder
+    style.fill: "#ddd6fe"
+  }
+  onnx: {
+    label: "Local Intent LLM\n(Qwen 2.5 1.5B · RTX 3060 CUDA)"
+    style.fill: "#c4b5fd"
+  }
+  glm: "Fallback Chat LLM"
+}
+
+"External Inputs".user -> "Home Assistant".assist: "Speech-to-Text"
+"Home Assistant".assist -> "Home Assistant".agent: "Text Command"
+"Home Assistant".agent -> "Rust Orchestrator (<50MB RAM)".api: "POST /v1/ha/process"
+
+"Rust Orchestrator (<50MB RAM)".api -> "Rust Orchestrator (<50MB RAM)".resolver: "1. Find Candidates"
+"Rust Orchestrator (<50MB RAM)".resolver -> "Data & AI Runtime".db: "Lookup Embeddings"
+
+"Rust Orchestrator (<50MB RAM)".api -> "Data & AI Runtime".onnx: "2. Strict JSON Parse (CUDA)"
+"Rust Orchestrator (<50MB RAM)".api -> "Data & AI Runtime".glm: "Fallback Answer"
+
+"Rust Orchestrator (<50MB RAM)".api -> "Rust Orchestrator (<50MB RAM)".safety: "3. Verify Plan"
+
+"Rust Orchestrator (<50MB RAM)".safety -> "Home Assistant".agent: "Final Valid Actions"
+
+"Home Assistant".agent -> "Home Assistant".devices: "HA Service Call"

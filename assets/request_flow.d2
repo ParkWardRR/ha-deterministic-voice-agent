@@ -1,0 +1,34 @@
+direction: down
+
+start: {label: "Start Voice Command"; shape: oval; style.fill: "#e2e8f0"}
+resolve: {label: "Resolve Target Entity\n(AVX-512 SIMD dot-product)"; style.fill: "#dbeafe"}
+found: {label: "Entities Found?"; shape: diamond; style.fill: "#fef08a"}
+fallback: {label: "Route to Fallback LLM"; style.fill: "#fbcfe8"}
+onnx: {label: "Local Intent LLM\n(Qwen 2.5 · RTX 3060 CUDA)"; style.fill: "#dcfce7"}
+extract: "Extract Valid Actions"
+safety: {label: "Safety Evaluation"; style.fill: "#ffedd5"}
+blocked: {label: "Is Domain Blocked?"; shape: diamond; style.fill: "#fef08a"}
+confirm: {label: "Needs Confirmation?"; shape: diamond; style.fill: "#fef08a"}
+
+reject: {label: "Reject Command"; shape: oval; style.fill: "#fca5a5"}
+ask: {label: "Ask User to Confirm"; shape: oval; style.fill: "#fde047"}
+exec: {label: "Execute via Home Assistant"; shape: oval; style.fill: "#86efac"}
+ans: {label: "Return Conversational Answer"; shape: oval; style.fill: "#bae6fd"}
+
+start -> resolve
+resolve -> found
+
+found -> onnx: "Yes"
+found -> fallback: "No"
+
+fallback -> ans
+
+onnx -> extract
+extract -> safety
+
+safety -> blocked
+blocked -> reject: "Yes"
+blocked -> confirm: "No"
+
+confirm -> ask: "Yes"
+confirm -> exec: "No"

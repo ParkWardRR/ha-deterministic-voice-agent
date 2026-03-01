@@ -1,0 +1,18 @@
+direction: right
+
+input: {label: "Input Phrase"; shape: oval; style.fill: "#e2e8f0"}
+lexical: {label: "Lexical Search\n(In-Memory Cache)"; style.fill: "#bae6fd"}
+vector: {label: "Vector Embedding\n(ONNX sentence-transformers)"; style.fill: "#c4b5fd"}
+db: {label: "PostgreSQL + pgvector\n(AVX-512 SIMD dot-product)"; shape: cylinder; style.fill: "#ddd6fe"}
+merge: {label: "Score Merge & Dedup\n(Lexical priority)"; style.fill: "#f0f4f8"}
+out: {label: "Top 8 Device Candidates"; shape: oval; style.fill: "#86efac"}
+
+input -> lexical
+input -> vector
+
+vector -> db: "Similarity Query"
+
+lexical -> merge
+db -> merge
+
+merge -> out
