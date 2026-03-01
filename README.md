@@ -5,7 +5,7 @@
 [![Rust](https://img.shields.io/badge/Rust-1.80+-000000?logo=rust&style=for-the-badge)](https://www.rust-lang.org/)
 [![ONNX Runtime](https://img.shields.io/badge/ONNX_v2.0-CUDA/_TensorRT-005CED?logo=onnx&style=for-the-badge)](https://onnxruntime.ai/)
 [![Tokio](https://img.shields.io/badge/Async-Tokio-DCDCDC?style=for-the-badge)](https://tokio.rs/)
-[![SIMD](https://img.shields.io/badge/SIMD-AVX--512-FF5722?style=for-the-badge)]()
+[![SIMD](https://img.shields.io/badge/SIMD-AVX--512-FF5722?style=for-the-badge)](https://en.wikipedia.org/wiki/Advanced_Vector_Extensions)
 [![pgvector](https://img.shields.io/badge/pgvector-HNSW%20ANN-4B5563?style=for-the-badge)](https://github.com/pgvector/pgvector)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-336791?logo=postgresql&style=for-the-badge)](https://www.postgresql.org/)
 [![Home Assistant](https://img.shields.io/badge/Home%20Assistant-Custom%20Agent-18BCF2?logo=homeassistant&style=for-the-badge)](https://www.home-assistant.io/)
@@ -60,19 +60,32 @@ Result: fewer wrong-device actions than "just ask one giant LLM to guess everyth
 This orchestrator is engineered for production-grade scale, speed, and safety.
 
 ### 1. High-Performance Rust Core
-The backend is written entirely in **Rust** using `tokio` for massive asynchronous I/O and `axum` for HTTP routing. It is specifically designed for deterministic entity resolution, avoiding hallucination via heavily constrained constraints.
+The backend is written entirely in **Rust** using `tokio` for massive multiplexed asynchronous I/O and `axum` for HTTP routing. It is specifically designed for deterministic entity resolution, avoiding hallucination via heavily constrained boundaries. The entire orchestrator daemon requires less than 50MB of baseline RAM utilization.
 
 ### 2. Local AI & ONNX Inference
-Intent parsing is completely offline and heavily optimized. We embed **Qwen 2.5 (1.5B)** directly into the orchestrator memory space via `ort` (ONNX Runtime v2.0). Using direct CUDA & TensorRT hooks alongside SIMD CPU fallbacks (AVX-512, f16 operations), intent inference executes in milliseconds without HTTP latency overhead.
+Intent parsing is completely offline and heavily optimized. We embed **Qwen 2.5 (1.5B)** directly into the orchestrator memory space via `ort` (ONNX Runtime v2.0). Using direct CUDA & TensorRT hooks alongside SIMD CPU fallbacks (AVX-512, fp16 computations), intent inference executes in milliseconds. We deploy custom tokenized sequences decoding greedily directly within the event loop, stripping out typical IPC REST latency layers.
 
 ### 3. SIMD-Accelerated Vector Retrieval
-Device candidate search pairs standard PostgreSQL caching capabilities with ultra-fast vector distance scoring. In-memory embeddings mapped from `pgvector` are ranked using heavily unrolled, AVX2 / AVX-512 explicitly vectorized dot-product arithmetic kernels dynamically dispatched via `multiversion`. 
+Device candidate search pairs standard PostgreSQL caching capabilities with ultra-fast vector distance scoring. In-memory exact embeddings mapped from `pgvector` are ranked using heavily unrolled, AVX2 / AVX-512 explicitly vectorized dot-product arithmetic kernels dynamically dispatched via `multiversion` based on CPU detection at startup.
 
 ### 4. Safety Gates & Verification
-Before execution, candidate actions must clear strict safety domains. Critical triggers (e.g., locks, garage doors) will force explicit confirmation dialogue blocks, and unclear commands with `score < 0.70` trigger dynamic clarification intents back to the user to prevent erroneous state mutations.
+Before execution, candidate actions must clear strict safety domains. Critical triggers (e.g., locks, garage doors) force active WebSockets confirmation dialogue blocks requiring an exact boolean override back from the Home Assistant frontend, whereas ambiguous intent `candidates[0].score < 0.70` trigger dynamic clarification workflows back to the user prioritizing physical safety.
 
 ### 5. Multi-Room Batch Execution
-Commands targeting widespread entity clusters natively expand constraints (e.g. up to 20 devices parsed concurrently) when explicit phrases ("all", "every") are detected. Asynchronous SQL database pool connections actively tunable up and down directly under massive Voice Command payloads.
+Commands targeting widespread entity clusters natively scale constraints. Using substring heuristics for collective definitions ("all", "every"), the vector parsing ceiling inflates to 20 devices concurrently dynamically. Asynchronous SQL (`sqlx`) database pool connection threads actively adapt dynamically (configurable via `DB_MIN_CONNS` & `DB_MAX_CONNS`) adjusting under massive voice command array workloads efficiently without freezing the node process.
+
+## Hardware Specifications
+
+### Minimum Requirements (CPU inference)
+- **CPU**: x86_64 AVX2-capable processor (Intel Haswell / AMD Zen 1 or newer) or ARM64
+- **RAM**: ~2.5 GB Total (50MB for Daemon + ~2GB for Qwen 1.5B ONNX Model caching)
+- **Storage**: ~2GB disk space for model files
+
+### Recommended Hardware (CUDA acceleration)
+- **CPU**: AVX-512 compatible (Intel Skylake-X / AMD Zen 4+)
+- **GPU**: NVIDIA GPU with >= 4GB VRAM (e.g., RTX 3050+)
+- **RAM**: 8 GB+
+- **Database**: PostgreSQL 17 deployed on NVMe SSD for high IOPS
 
 ## How to Deploy
 
