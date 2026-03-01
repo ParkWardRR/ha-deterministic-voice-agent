@@ -347,12 +347,22 @@ async fn handle_process(
 
                 tracing::info!("Executing HA action: POST {} with data {:?}", url, payload);
 
-                // Fire and forget (or wait for success)
-                let _ = client.post(&url)
+                // Actually await the result and log it
+                match client.post(&url)
                     .header("Authorization", format!("Bearer {}", token))
                     .json(&payload)
                     .send()
-                    .await;
+                    .await 
+                {
+                    Ok(resp) => {
+                        let status = resp.status();
+                        let body = resp.text().await.unwrap_or_default();
+                        tracing::info!("HA action response: {} - {}", status, body);
+                    },
+                    Err(e) => {
+                        tracing::error!("Failed to execute HA action: {}", e);
+                    }
+                }
             }
         }
     }
