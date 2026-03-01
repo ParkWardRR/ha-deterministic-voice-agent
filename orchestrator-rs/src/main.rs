@@ -23,12 +23,20 @@ mod config;
 mod conversation;
 mod embedder_local;
 mod ha_ws;
+mod intent_local;
 mod ml_clients;
 mod models;
 mod resolver;
 mod safety;
 mod simd_ops;
 mod sync;
+
+pub enum IntentEngine {
+    Http(Arc<ml_clients::IntentClient>),
+    Local(Arc<intent_local::LocalIntentClient>),
+}
+
+use IntentEngine::*;
 
 #[derive(Parser)]
 #[command(name = "orchestrator", version = "0.2.0")]
@@ -50,7 +58,7 @@ enum Commands {
 
 struct AppState {
     resolver: Arc<Resolver>,
-    intent_llm: Arc<IntentClient>,
+    intent_llm: IntentEngine,
     glm_client: Arc<GLMClient>,
     safety: Arc<SafetyGate>,
     memory: Arc<ConversationMemory>,
@@ -92,9 +100,9 @@ async fn run_server(cfg: Arc<Config>) -> Result<(), Box<dyn std::error::Error>> 
     
     // Connect to DB and initialize the resolver
     let pool = sqlx::postgres::PgPoolOptions::new()
-        .max_connections(20)
-        .min_connections(2)
-        .idle_timeout(std::time::Duration::from_secs(60))
+        .max_connections(cfg.db_max_conns)
+        .min_connections(cfg.db_min_conns)
+        .idle_timeout(std::time::Duration::from_secs(cfg.db_idle_timeout))
         .connect(&cfg.pg_dsn)
         .await?;
 
@@ -109,7 +117,14 @@ async fn run_server(cfg: Arc<Config>) -> Result<(), Box<dyn std::error::Error>> 
 
     let resolver = Arc::new(Resolver::new(pool, cache.clone(), cfg.clone(), embedder).await?);
     
-    let intent_llm = Arc::new(IntentClient::new(cfg.intent_url.clone()));
+    let intent_llm = if std::path::Path::new(&format!("{}/qwen2.5-1.5b-instruct/model.onnx", cfg.model_dir)).exists() {
+        tracing::info!("Using local ONNX intent model for execution");
+        Local(Arc::new(intent_local::LocalIntentClient::new(&cfg.model_dir).map_err(|e| e as Box<dyn std::error::Error>)?))
+    } else {
+        tracing::info!("Using HTTP intent model for execution");
+        Http(Arc::new(IntentClient::new(cfg.intent_url.clone())))
+    };
+
     let glm_client = Arc::new(GLMClient::new(cfg.glm_url.clone()));
     let safety = Arc::new(SafetyGate::with_config(&cfg.safety));
     let memory = Arc::new(ConversationMemory::new());
@@ -261,8 +276,13 @@ async fn handle_process(
         });
     }
 
-    // Step 5: Intent parsing via Local LLM
-    let plan = match state.intent_llm.parse(&req.text, &candidates).await {
+    // Step 5: Intent parsing via Local or HTTP LLM
+    let intent_result = match &state.intent_llm {
+        Http(client) => client.parse(&req.text, &candidates).await,
+        Local(client) => client.parse(&req.text, &candidates).await,
+    };
+
+    let plan = match intent_result {
         Ok(p) => p,
         Err(e) => {
             tracing::error!("Intent LLM error: {}, falling back to single best action", e);

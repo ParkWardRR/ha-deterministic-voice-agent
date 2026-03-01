@@ -8,6 +8,15 @@ pub struct Config {
     #[serde(default = "default_pg_dsn")]
     pub pg_dsn: String,
 
+    #[serde(default = "default_db_min_conns")]
+    pub db_min_conns: u32,
+
+    #[serde(default = "default_db_max_conns")]
+    pub db_max_conns: u32,
+
+    #[serde(default = "default_db_idle_timeout")]
+    pub db_idle_timeout: u64,
+
     #[serde(default)]
     pub embedder_url: String,
 
@@ -75,6 +84,9 @@ impl Config {
         // Environment variable overrides
         if let Ok(v) = std::env::var("LISTEN_ADDR") { cfg.listen_addr = v; }
         if let Ok(v) = std::env::var("PG_DSN") { cfg.pg_dsn = v; }
+        if let Ok(v) = std::env::var("DB_MIN_CONNS") { if let Ok(n) = v.parse() { cfg.db_min_conns = n; } }
+        if let Ok(v) = std::env::var("DB_MAX_CONNS") { if let Ok(n) = v.parse() { cfg.db_max_conns = n; } }
+        if let Ok(v) = std::env::var("DB_IDLE_TIMEOUT") { if let Ok(n) = v.parse() { cfg.db_idle_timeout = n; } }
         if let Ok(v) = std::env::var("EMBEDDER_URL") { cfg.embedder_url = v; }
         if let Ok(v) = std::env::var("INTENT_URL") { cfg.intent_url = v; }
         if let Ok(v) = std::env::var("GLM_URL") { cfg.glm_url = v; }
@@ -91,6 +103,9 @@ impl Default for Config {
         Self {
             listen_addr: default_listen(),
             pg_dsn: default_pg_dsn(),
+            db_min_conns: default_db_min_conns(),
+            db_max_conns: default_db_max_conns(),
+            db_idle_timeout: default_db_idle_timeout(),
             embedder_url: String::new(),
             intent_url: default_intent_url(),
             glm_url: default_glm_url(),
@@ -104,6 +119,9 @@ impl Default for Config {
 
 fn default_listen() -> String { "0.0.0.0:5000".into() }
 fn default_pg_dsn() -> String { "postgres://agent:change-me@localhost:5432/agent?sslmode=disable".into() }
+fn default_db_min_conns() -> u32 { 2 }
+fn default_db_max_conns() -> u32 { 20 }
+fn default_db_idle_timeout() -> u64 { 60 }
 fn default_intent_url() -> String { "http://localhost:8081".into() }
 fn default_glm_url() -> String { "http://localhost:8080".into() }
 fn default_model_dir() -> String { "/opt/zagato-agent/models".into() }
