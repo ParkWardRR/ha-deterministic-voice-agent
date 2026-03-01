@@ -56,6 +56,10 @@ impl Resolver {
         Ok(())
     }
 
+    pub fn config(&self) -> Arc<Config> {
+        self.cfg.clone()
+    }
+
     pub async fn resolve(&self, text: &str) -> Result<Vec<Candidate>, sqlx::Error> {
         let lower = text.trim().to_lowercase();
 
